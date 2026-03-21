@@ -2,6 +2,7 @@ package edu.eci.dosw.DOSW_Library.core.service;
 
 import edu.eci.dosw.DOSW_Library.core.exception.UserNotFoundException;
 import edu.eci.dosw.DOSW_Library.core.model.User;
+import edu.eci.dosw.DOSW_Library.core.util.ApiMessages;
 import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
@@ -25,6 +26,6 @@ public class UserService {
         return users.stream()
                 .filter(user -> user.getId().equals(id))
                 .findFirst()
-                .orElseThrow(() -> new UserNotFoundException("Usuario no encontrado"));
+                .orElseThrow(() -> new UserNotFoundException(ApiMessages.USER_NOT_FOUND));
     }
 }

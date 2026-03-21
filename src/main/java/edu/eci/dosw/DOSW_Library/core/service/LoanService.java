@@ -4,6 +4,7 @@ import edu.eci.dosw.DOSW_Library.core.model.Book;
 import edu.eci.dosw.DOSW_Library.core.model.Loan;
 import edu.eci.dosw.DOSW_Library.core.model.LoanStatus;
 import edu.eci.dosw.DOSW_Library.core.model.User;
+import edu.eci.dosw.DOSW_Library.core.util.ApiMessages;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDate;
@@ -46,7 +47,7 @@ public class LoanService {
         Loan loan = loans.stream()
                 .filter(currentLoan -> currentLoan.getId().equals(loanId))
                 .findFirst()
-                .orElseThrow(() -> new RuntimeException("Préstamo no encontrado"));
+                .orElseThrow(() -> new RuntimeException(ApiMessages.LOAN_NOT_FOUND));
 
         loan.setStatus(LoanStatus.RETURNED);
         loan.setReturnDate(LocalDate.now());

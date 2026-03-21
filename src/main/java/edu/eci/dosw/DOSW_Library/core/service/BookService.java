@@ -2,6 +2,7 @@ package edu.eci.dosw.DOSW_Library.core.service;
 
 import edu.eci.dosw.DOSW_Library.core.exception.BookNotAvailableException;
 import edu.eci.dosw.DOSW_Library.core.model.Book;
+import edu.eci.dosw.DOSW_Library.core.util.ApiMessages;
 import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
@@ -46,7 +47,7 @@ public class BookService {
         Integer quantity = bookQuantities.get(id);
 
         if (quantity == null || quantity <= 0) {
-            throw new BookNotAvailableException("El libro no está disponible");
+            throw new BookNotAvailableException(ApiMessages.BOOK_NOT_AVAILABLE);
         }
 
         quantity = quantity - 1;

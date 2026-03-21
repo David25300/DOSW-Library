@@ -21,7 +21,11 @@ En esta sección se presenta la evidencia de la cobertura de pruebas y del anál
 
 Token: squ_3407a73fede833189fa6d02403f807c40d3804a0
 
-## 5. Bitácora
+## Api en swaggwer
+
+![SwaggerLibrary.png](docs/images/SwaggerLibrary.png)
+
+## Bitácora
 Para la bitácora de esta semana, la evidencia corresponde al enlace de este repositorio: 
 
 https://github.com/David25300/Bitacora_Corte1.git
