@@ -1,51 +1,25 @@
 package edu.eci.dosw.DOSW_Library.core.model;
 
+import jakarta.validation.constraints.NotBlank;
+import lombok.AllArgsConstructor;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.Setter;
+
+@Getter
+@Setter
+@NoArgsConstructor
+@AllArgsConstructor
 public class Book {
 
+    @NotBlank(message = "El ID del libro es obligatorio")
     private String id;
+
+    @NotBlank(message = "El título es obligatorio")
     private String title;
+
+    @NotBlank(message = "El autor es obligatorio")
     private String author;
+
     private boolean available;
-
-    public Book() {
-    }
-
-    public Book(String id, String title, String author, boolean available) {
-        this.id = id;
-        this.title = title;
-        this.author = author;
-        this.available = available;
-    }
-
-    public String getId() {
-        return id;
-    }
-
-    public void setId(String id) {
-        this.id = id;
-    }
-
-    public String getTitle() {
-        return title;
-    }
-
-    public void setTitle(String title) {
-        this.title = title;
-    }
-
-    public String getAuthor() {
-        return author;
-    }
-
-    public void setAuthor(String author) {
-        this.author = author;
-    }
-
-    public boolean isAvailable() {
-        return available;
-    }
-
-    public void setAvailable(boolean available) {
-        this.available = available;
-    }
 }
