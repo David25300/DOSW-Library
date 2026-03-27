@@ -9,6 +9,7 @@ import edu.eci.dosw.DOSW_Library.persistence.repository.UserRepository;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
+import java.util.UUID;
 
 @Service
 public class UserService {
@@ -23,6 +24,10 @@ public class UserService {
     }
 
     public User registerUser(User user) {
+        if (user.getId() == null || user.getId().isBlank()) {
+            user.setId(UUID.randomUUID().toString());
+        }
+
         UserEntity entity = userPersistenceMapper.toEntity(user);
         UserEntity savedEntity = userRepository.save(entity);
         return userPersistenceMapper.toDomain(savedEntity);
