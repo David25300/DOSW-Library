@@ -1,10 +1,14 @@
 package edu.eci.dosw.DOSW_Library.core.model;
 
+import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
+
+import java.time.LocalDate;
+import java.util.List;
 
 @Getter
 @Setter
@@ -21,5 +25,27 @@ public class Book {
     @NotBlank(message = "El autor es obligatorio")
     private String author;
 
-    private boolean available;
+    @Min(value = 1, message = "El stock total debe ser mayor a 0")
+    private int totalStock;
+
+    @Min(value = 0, message = "Las copias disponibles no pueden ser negativas")
+    private int availableCopies;
+
+    // Campos extendidos para MongoDB
+    private String isbn;
+    private List<String> categories;
+    private String publicationType;
+    private LocalDate publicationDate;
+    private int pages;
+    private String language;
+    private String publisher;
+    private LocalDate addedToCatalogDate;
+
+    public boolean isAvailable() {
+        return availableCopies > 0;
+    }
+
+    public int getBorrowedCopies() {
+        return totalStock - availableCopies;
+    }
 }

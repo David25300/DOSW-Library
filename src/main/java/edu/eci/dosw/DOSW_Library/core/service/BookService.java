@@ -3,75 +3,70 @@ package edu.eci.dosw.DOSW_Library.core.service;
 import edu.eci.dosw.DOSW_Library.core.exception.BookNotAvailableException;
 import edu.eci.dosw.DOSW_Library.core.model.Book;
 import edu.eci.dosw.DOSW_Library.core.util.ApiMessages;
+import edu.eci.dosw.DOSW_Library.persistence.BookRepository;
+import edu.eci.dosw.DOSW_Library.persistence.LoanRepository;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
-import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 
 @Service
 public class BookService {
 
-    private final Map<String, Book> books = new HashMap<>();
-    private final Map<String, Integer> bookQuantities = new HashMap<>();
+    private final BookRepository bookRepository;
+    private final LoanRepository loanRepository;
 
-    public Book addBook(Book book, int quantity) {
-        book.setAvailable(quantity > 0);
-        books.put(book.getId(), book);
-        bookQuantities.put(book.getId(), quantity);
-        return book;
+    public BookService(BookRepository bookRepository, LoanRepository loanRepository) {
+        this.bookRepository = bookRepository;
+        this.loanRepository = loanRepository;
+    }
+
+    @Transactional
+    public Book addBook(Book book) {
+        if (bookRepository.existsById(book.getId())) {
+            throw new IllegalArgumentException(ApiMessages.BOOK_ALREADY_EXISTS);
+        }
+        if (book.getTotalStock() <= 0) {
+            throw new IllegalArgumentException(ApiMessages.BOOK_INVALID_STOCK);
+        }
+        if (book.getAvailableCopies() < 0 || book.getAvailableCopies() > book.getTotalStock()) {
+            throw new IllegalArgumentException(ApiMessages.BOOK_INVALID_COPIES);
+        }
+        return bookRepository.save(book);
     }
 
     public List<Book> getAllBooks() {
-        return new ArrayList<>(books.values());
+        return bookRepository.findAll();
     }
 
     public Book getBookById(String id) {
-        return books.get(id);
+        return bookRepository.findById(id)
+                .orElseThrow(() -> new BookNotAvailableException(ApiMessages.BOOK_NOT_FOUND));
     }
 
-    public void updateAvailability(String id, boolean available) {
-        Book book = books.get(id);
-        if (book != null) {
-            book.setAvailable(available);
+    @Transactional
+    public Book updateStock(String id, int totalStock, int availableCopies) {
+        Book book = bookRepository.findById(id)
+                .orElseThrow(() -> new BookNotAvailableException(ApiMessages.BOOK_NOT_FOUND));
+        if (totalStock <= 0) {
+            throw new IllegalArgumentException(ApiMessages.BOOK_INVALID_STOCK);
         }
+        if (availableCopies < 0 || availableCopies > totalStock) {
+            throw new IllegalArgumentException(ApiMessages.BOOK_INVALID_COPIES);
+        }
+        book.setTotalStock(totalStock);
+        book.setAvailableCopies(availableCopies);
+        return bookRepository.save(book);
     }
 
-    public boolean isBookAvailable(String id) {
-        Integer quantity = bookQuantities.get(id);
-        return quantity != null && quantity > 0;
-    }
-
-    public void borrowBook(String id) {
-        Integer quantity = bookQuantities.get(id);
-
-        if (quantity == null || quantity <= 0) {
-            throw new BookNotAvailableException(ApiMessages.BOOK_NOT_AVAILABLE);
+    @Transactional
+    public void deleteBook(String id) {
+        bookRepository.findById(id)
+                .orElseThrow(() -> new BookNotAvailableException(ApiMessages.BOOK_NOT_FOUND));
+        if (loanRepository.existsByBookIdAndStatus(id, "ACTIVE")) {
+            throw new IllegalStateException(ApiMessages.BOOK_HAS_ACTIVE_LOANS);
         }
-
-        quantity = quantity - 1;
-        bookQuantities.put(id, quantity);
-
-        Book book = books.get(id);
-        if (book != null) {
-            book.setAvailable(quantity > 0);
-        }
-    }
-
-    public void returnBook(String id) {
-        Integer quantity = bookQuantities.get(id);
-
-        if (quantity == null) {
-            quantity = 0;
-        }
-
-        quantity = quantity + 1;
-        bookQuantities.put(id, quantity);
-
-        Book book = books.get(id);
-        if (book != null) {
-            book.setAvailable(true);
-        }
+        loanRepository.deleteByBookId(id);
+        bookRepository.deleteById(id);
     }
 }

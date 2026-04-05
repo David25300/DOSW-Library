@@ -1,0 +1,15 @@
+services:
+  postgres:
+    image: postgres:18
+    container_name: dosw-library-postgres
+    environment:
+      POSTGRES_DB: dosw_library
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: Kironcha25
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+volumes:
+  postgres_data:
