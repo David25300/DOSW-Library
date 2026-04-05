@@ -1,0 +1,19 @@
+spring:
+  autoconfigure:
+    exclude:
+      - org.springframework.boot.autoconfigure.jdbc.DataSourceAutoConfiguration
+      - org.springframework.boot.autoconfigure.orm.jpa.HibernateJpaAutoConfiguration
+      - org.springframework.boot.autoconfigure.data.mongo.MongoDataAutoConfiguration
+      - org.springframework.boot.autoconfigure.mongo.MongoAutoConfiguration
+
+  data:
+    mongodb:
+      uri: mongodb://localhost:27017/test
+      database: test
+
+jwt:
+  secret: ZG9zdy1saWJyYXJ5LXNlY3JldC1rZXktMjAyNi1zdXBlci1zZWN1cmUtand0LXNpZ25pbmcta2V5LTEyMzQ1Njc4OTA=
+  expiration: 3600000
+
+server:
+  port: 8080
