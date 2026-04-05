@@ -1,0 +1,34 @@
+spring:
+  profiles:
+    active: mongo
+
+  datasource:
+    url: jdbc:postgresql://localhost:5432/dosw_library
+    username: postgres
+    password: Kironcha25
+    driver-class-name: org.postgresql.Driver
+
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: true
+    properties:
+      hibernate:
+        format_sql: true
+
+  data:
+    mongodb:
+      uri: mongodb+srv://Daviago25:Kironcha25@cluster0.44w2hat.mongodb.net/dosw_library?retryWrites=true&w=majority&appName=Cluster0
+      database: dosw_library
+
+jwt:
+  secret: ZG9zdy1saWJyYXJ5LXNlY3JldC1rZXktMjAyNi1zdXBlci1zZWN1cmUtand0LXNpZ25pbmcta2V5LTEyMzQ1Njc4OTA=
+  expiration: 3600000
+
+server:
+  ssl:
+    key-store: classpath:keystore.p12
+    key-store-password: doswlibrary2026
+    key-store-type: PKCS12
+    key-alias: dosw-library
+  port: 8443
