@@ -3,10 +3,10 @@ package edu.eci.dosw.DOSW_Library.core.service;
 import edu.eci.dosw.DOSW_Library.core.exception.BookNotAvailableException;
 import edu.eci.dosw.DOSW_Library.core.model.Book;
 import edu.eci.dosw.DOSW_Library.core.util.ApiMessages;
-import edu.eci.dosw.DOSW_Library.persistence.entity.BookEntity;
-import edu.eci.dosw.DOSW_Library.persistence.mapper.BookPersistenceMapper;
-import edu.eci.dosw.DOSW_Library.persistence.repository.BookRepository;
+import edu.eci.dosw.DOSW_Library.persistence.BookRepository;
+import edu.eci.dosw.DOSW_Library.persistence.LoanRepository;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 
@@ -14,67 +14,59 @@ import java.util.List;
 public class BookService {
 
     private final BookRepository bookRepository;
-    private final BookPersistenceMapper bookPersistenceMapper;
+    private final LoanRepository loanRepository;
 
-    public BookService(BookRepository bookRepository,
-                       BookPersistenceMapper bookPersistenceMapper) {
+    public BookService(BookRepository bookRepository, LoanRepository loanRepository) {
         this.bookRepository = bookRepository;
-        this.bookPersistenceMapper = bookPersistenceMapper;
+        this.loanRepository = loanRepository;
     }
 
-    public Book addBook(Book book, int quantity) {
-        book.setAvailable(quantity > 0);
-
-        BookEntity entity = bookPersistenceMapper.toEntity(book);
-        BookEntity savedEntity = bookRepository.save(entity);
-
-        return bookPersistenceMapper.toDomain(savedEntity);
+    @Transactional
+    public Book addBook(Book book) {
+        if (bookRepository.existsById(book.getId())) {
+            throw new IllegalArgumentException(ApiMessages.BOOK_ALREADY_EXISTS);
+        }
+        if (book.getTotalStock() <= 0) {
+            throw new IllegalArgumentException(ApiMessages.BOOK_INVALID_STOCK);
+        }
+        if (book.getAvailableCopies() < 0 || book.getAvailableCopies() > book.getTotalStock()) {
+            throw new IllegalArgumentException(ApiMessages.BOOK_INVALID_COPIES);
+        }
+        return bookRepository.save(book);
     }
 
     public List<Book> getAllBooks() {
-        return bookRepository.findAll()
-                .stream()
-                .map(bookPersistenceMapper::toDomain)
-                .toList();
+        return bookRepository.findAll();
     }
 
     public Book getBookById(String id) {
-        BookEntity entity = bookRepository.findById(id)
-                .orElseThrow(() -> new BookNotAvailableException(ApiMessages.BOOK_NOT_AVAILABLE));
-        return bookPersistenceMapper.toDomain(entity);
-    }
-
-    public void updateAvailability(String id, boolean available) {
-        BookEntity entity = bookRepository.findById(id)
-                .orElseThrow(() -> new BookNotAvailableException(ApiMessages.BOOK_NOT_AVAILABLE));
-
-        entity.setAvailable(available);
-        bookRepository.save(entity);
-    }
-
-    public boolean isBookAvailable(String id) {
         return bookRepository.findById(id)
-                .map(BookEntity::isAvailable)
-                .orElse(false);
+                .orElseThrow(() -> new BookNotAvailableException(ApiMessages.BOOK_NOT_FOUND));
     }
 
-    public void borrowBook(String id) {
-        BookEntity entity = bookRepository.findById(id)
-                .orElseThrow(() -> new BookNotAvailableException(ApiMessages.BOOK_NOT_AVAILABLE));
-
-        if (!entity.isAvailable()) {
-            throw new BookNotAvailableException(ApiMessages.BOOK_NOT_AVAILABLE);
+    @Transactional
+    public Book updateStock(String id, int totalStock, int availableCopies) {
+        Book book = bookRepository.findById(id)
+                .orElseThrow(() -> new BookNotAvailableException(ApiMessages.BOOK_NOT_FOUND));
+        if (totalStock <= 0) {
+            throw new IllegalArgumentException(ApiMessages.BOOK_INVALID_STOCK);
         }
-
-        entity.setAvailable(false);
-        bookRepository.save(entity);
+        if (availableCopies < 0 || availableCopies > totalStock) {
+            throw new IllegalArgumentException(ApiMessages.BOOK_INVALID_COPIES);
+        }
+        book.setTotalStock(totalStock);
+        book.setAvailableCopies(availableCopies);
+        return bookRepository.save(book);
     }
 
-    public void returnBook(String id) {
-        BookEntity entity = bookRepository.findById(id)
-                .orElseThrow(() -> new BookNotAvailableException(ApiMessages.BOOK_NOT_AVAILABLE));
-
-        entity.setAvailable(true);
-        bookRepository.save(entity);
+    @Transactional
+    public void deleteBook(String id) {
+        bookRepository.findById(id)
+                .orElseThrow(() -> new BookNotAvailableException(ApiMessages.BOOK_NOT_FOUND));
+        if (loanRepository.existsByBookIdAndStatus(id, "ACTIVE")) {
+            throw new IllegalStateException(ApiMessages.BOOK_HAS_ACTIVE_LOANS);
+        }
+        loanRepository.deleteByBookId(id);
+        bookRepository.deleteById(id);
     }
 }

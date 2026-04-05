@@ -1,7 +1,10 @@
 package edu.eci.dosw.DOSW_Library.config;
 
 import io.swagger.v3.oas.models.OpenAPI;
+import io.swagger.v3.oas.models.Components;
 import io.swagger.v3.oas.models.info.Info;
+import io.swagger.v3.oas.models.security.SecurityRequirement;
+import io.swagger.v3.oas.models.security.SecurityScheme;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
@@ -14,6 +17,17 @@ public class OpenApiConfig {
                 .info(new Info()
                         .title("DOSW Library API")
                         .version("1.0")
-                        .description("API para la gestion de biblioteca"));
+                        .description("API para la gestion de biblioteca"))
+                .addSecurityItem(new SecurityRequirement().addList("Bearer JWT"))
+                .components(new Components()
+                        .addSecuritySchemes("Bearer JWT",
+                                new SecurityScheme()
+                                        .name("Bearer JWT")
+                                        .type(SecurityScheme.Type.HTTP)
+                                        .scheme("bearer")
+                                        .bearerFormat("JWT")
+                                        .description("Ingresa tu token JWT (sin la palabra Bearer)")
+                        )
+                );
     }
 }

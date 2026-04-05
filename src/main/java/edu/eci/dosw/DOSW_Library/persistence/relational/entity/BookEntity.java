@@ -1,4 +1,4 @@
-package edu.eci.dosw.DOSW_Library.persistence.entity;
+package edu.eci.dosw.DOSW_Library.persistence.relational.entity;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -28,5 +28,8 @@ public class BookEntity {
     private String author;
 
     @Column(nullable = false)
-    private boolean available;
+    private int totalStock;
+
+    @Column(nullable = false)
+    private int availableCopies;
 }

@@ -1,10 +1,12 @@
-package edu.eci.dosw.DOSW_Library.core.model;
+package edu.eci.dosw.DOSW_Library.persistence.nonrelational.document;
 
-import jakarta.validation.constraints.NotBlank;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
+import org.springframework.data.annotation.Id;
+import org.springframework.data.mongodb.core.index.Indexed;
+import org.springframework.data.mongodb.core.mapping.Document;
 
 import java.time.LocalDate;
 
@@ -12,22 +14,24 @@ import java.time.LocalDate;
 @Setter
 @NoArgsConstructor
 @AllArgsConstructor
-public class User {
+@Document(collection = "users")
+public class UserDocument {
 
+    @Id
     private String id;
 
-    @NotBlank(message = "El nombre del usuario es obligatorio")
     private String name;
 
-    @NotBlank(message = "El username es obligatorio")
+    @Indexed(unique = true)
     private String username;
 
     private String password;
 
-    private Role role;
+    private String role; // USER, LIBRARIAN
 
-    // Campos extendidos para MongoDB
     private String email;
+
     private String membershipType; // VIP, PLATINUM, STANDARD
+
     private LocalDate registrationDate;
 }

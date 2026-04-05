@@ -3,46 +3,41 @@ package edu.eci.dosw.DOSW_Library.core.service;
 import edu.eci.dosw.DOSW_Library.core.exception.UserNotFoundException;
 import edu.eci.dosw.DOSW_Library.core.model.User;
 import edu.eci.dosw.DOSW_Library.core.util.ApiMessages;
-import edu.eci.dosw.DOSW_Library.persistence.entity.UserEntity;
-import edu.eci.dosw.DOSW_Library.persistence.mapper.UserPersistenceMapper;
-import edu.eci.dosw.DOSW_Library.persistence.repository.UserRepository;
+import edu.eci.dosw.DOSW_Library.persistence.LoanRepository;
+import edu.eci.dosw.DOSW_Library.persistence.UserRepository;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
-import java.util.UUID;
 
 @Service
 public class UserService {
 
     private final UserRepository userRepository;
-    private final UserPersistenceMapper userPersistenceMapper;
+    private final LoanRepository loanRepository;
 
-    public UserService(UserRepository userRepository,
-                       UserPersistenceMapper userPersistenceMapper) {
+    public UserService(UserRepository userRepository, LoanRepository loanRepository) {
         this.userRepository = userRepository;
-        this.userPersistenceMapper = userPersistenceMapper;
-    }
-
-    public User registerUser(User user) {
-        if (user.getId() == null || user.getId().isBlank()) {
-            user.setId(UUID.randomUUID().toString());
-        }
-
-        UserEntity entity = userPersistenceMapper.toEntity(user);
-        UserEntity savedEntity = userRepository.save(entity);
-        return userPersistenceMapper.toDomain(savedEntity);
+        this.loanRepository = loanRepository;
     }
 
     public List<User> getAllUsers() {
-        return userRepository.findAll()
-                .stream()
-                .map(userPersistenceMapper::toDomain)
-                .toList();
+        return userRepository.findAll();
     }
 
     public User getUserById(String id) {
-        UserEntity entity = userRepository.findById(id)
+        return userRepository.findById(id)
                 .orElseThrow(() -> new UserNotFoundException(ApiMessages.USER_NOT_FOUND));
-        return userPersistenceMapper.toDomain(entity);
+    }
+
+    @Transactional
+    public void deleteUser(String id) {
+        userRepository.findById(id)
+                .orElseThrow(() -> new UserNotFoundException(ApiMessages.USER_NOT_FOUND));
+        if (loanRepository.existsByUserIdAndStatus(id, "ACTIVE")) {
+            throw new IllegalStateException(ApiMessages.USER_HAS_ACTIVE_LOANS);
+        }
+        loanRepository.deleteByUserId(id);
+        userRepository.deleteById(id);
     }
 }

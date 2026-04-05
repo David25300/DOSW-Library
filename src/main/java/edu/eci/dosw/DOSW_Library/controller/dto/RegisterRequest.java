@@ -1,4 +1,4 @@
-package edu.eci.dosw.DOSW_Library.core.model;
+package edu.eci.dosw.DOSW_Library.controller.dto;
 
 import jakarta.validation.constraints.NotBlank;
 import lombok.AllArgsConstructor;
@@ -6,28 +6,21 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 
-import java.time.LocalDate;
-
 @Getter
 @Setter
 @NoArgsConstructor
 @AllArgsConstructor
-public class User {
+public class RegisterRequest {
 
-    private String id;
-
-    @NotBlank(message = "El nombre del usuario es obligatorio")
+    @NotBlank(message = "El nombre es obligatorio")
     private String name;
 
     @NotBlank(message = "El username es obligatorio")
     private String username;
 
+    @NotBlank(message = "La contraseña es obligatoria")
     private String password;
 
-    private Role role;
-
-    // Campos extendidos para MongoDB
     private String email;
     private String membershipType; // VIP, PLATINUM, STANDARD
-    private LocalDate registrationDate;
 }
