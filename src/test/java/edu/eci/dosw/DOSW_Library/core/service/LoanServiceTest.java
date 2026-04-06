@@ -1,10 +1,8 @@
 package edu.eci.dosw.DOSW_Library.core.service;
 
-import edu.eci.dosw.DOSW_Library.core.model.Book;
-import edu.eci.dosw.DOSW_Library.core.model.Loan;
-import edu.eci.dosw.DOSW_Library.core.model.LoanStatus;
-import edu.eci.dosw.DOSW_Library.core.model.User;
-import edu.eci.dosw.DOSW_Library.core.model.Role;
+import edu.eci.dosw.DOSW_Library.core.exception.BookNotAvailableException;
+import edu.eci.dosw.DOSW_Library.core.exception.UserNotFoundException;
+import edu.eci.dosw.DOSW_Library.core.model.*;
 import edu.eci.dosw.DOSW_Library.persistence.BookRepository;
 import edu.eci.dosw.DOSW_Library.persistence.LoanRepository;
 import edu.eci.dosw.DOSW_Library.persistence.UserRepository;
@@ -15,6 +13,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.security.access.AccessDeniedException;
 
 import java.time.LocalDate;
 import java.util.ArrayList;
@@ -69,67 +68,262 @@ class LoanServiceTest {
         testLoan.setHistory(new ArrayList<>());
     }
 
+    // --- createLoan ---
+
     @Test
-    @DisplayName("Dado que tengo 1 reserva registrada, cuando lo consulto a nivel de servicio, entonces la consulta será exitosa validando el campo id")
+    @DisplayName("Crear préstamo exitosamente")
+    void createLoan_success() {
+        when(userRepository.findById("user-001")).thenReturn(Optional.of(testUser));
+        when(bookRepository.findById("book-001")).thenReturn(Optional.of(testBook));
+        when(bookRepository.save(any(Book.class))).thenReturn(testBook);
+        when(loanRepository.save(any(Loan.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        Loan result = loanService.createLoan("book-001", "user-001");
+
+        assertNotNull(result);
+        assertEquals(LoanStatus.ACTIVE, result.getStatus());
+        assertEquals(LocalDate.now(), result.getLoanDate());
+        assertNotNull(result.getHistory());
+        assertFalse(result.getHistory().isEmpty());
+        verify(bookRepository).save(any(Book.class));
+    }
+
+    @Test
+    @DisplayName("Crear préstamo con usuario inexistente lanza excepción")
+    void createLoan_userNotFound_throwsException() {
+        when(userRepository.findById("user-999")).thenReturn(Optional.empty());
+
+        assertThrows(UserNotFoundException.class, () -> loanService.createLoan("book-001", "user-999"));
+    }
+
+    @Test
+    @DisplayName("Crear préstamo con libro inexistente lanza excepción")
+    void createLoan_bookNotFound_throwsException() {
+        when(userRepository.findById("user-001")).thenReturn(Optional.of(testUser));
+        when(bookRepository.findById("book-999")).thenReturn(Optional.empty());
+
+        assertThrows(BookNotAvailableException.class, () -> loanService.createLoan("book-999", "user-001"));
+    }
+
+    @Test
+    @DisplayName("Crear préstamo sin copias disponibles lanza excepción")
+    void createLoan_noCopies_throwsException() {
+        testBook.setAvailableCopies(0);
+        when(userRepository.findById("user-001")).thenReturn(Optional.of(testUser));
+        when(bookRepository.findById("book-001")).thenReturn(Optional.of(testBook));
+
+        assertThrows(BookNotAvailableException.class, () -> loanService.createLoan("book-001", "user-001"));
+    }
+
+    // --- returnLoan ---
+
+    @Test
+    @DisplayName("Devolver préstamo exitosamente")
+    void returnLoan_success() {
+        testBook.setAvailableCopies(4);
+        when(loanRepository.findById("loan-001")).thenReturn(Optional.of(testLoan));
+        when(bookRepository.findById("book-001")).thenReturn(Optional.of(testBook));
+        when(bookRepository.save(any(Book.class))).thenReturn(testBook);
+        when(loanRepository.save(any(Loan.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        Loan result = loanService.returnLoan("loan-001");
+
+        assertEquals(LoanStatus.RETURNED, result.getStatus());
+        assertEquals(LocalDate.now(), result.getReturnDate());
+    }
+
+    @Test
+    @DisplayName("Devolver préstamo ya devuelto lanza excepción")
+    void returnLoan_alreadyReturned_throwsException() {
+        testLoan.setStatus(LoanStatus.RETURNED);
+        when(loanRepository.findById("loan-001")).thenReturn(Optional.of(testLoan));
+
+        assertThrows(IllegalStateException.class, () -> loanService.returnLoan("loan-001"));
+    }
+
+    @Test
+    @DisplayName("Devolver préstamo inexistente lanza excepción")
+    void returnLoan_notFound_throwsException() {
+        when(loanRepository.findById("loan-999")).thenReturn(Optional.empty());
+
+        assertThrows(RuntimeException.class, () -> loanService.returnLoan("loan-999"));
+    }
+
+    @Test
+    @DisplayName("Devolver préstamo cuando copias ya igualan stock total")
+    void returnLoan_copiesEqualStock_doesNotExceed() {
+        testBook.setAvailableCopies(5); // ya al máximo
+        when(loanRepository.findById("loan-001")).thenReturn(Optional.of(testLoan));
+        when(bookRepository.findById("book-001")).thenReturn(Optional.of(testBook));
+        when(loanRepository.save(any(Loan.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        Loan result = loanService.returnLoan("loan-001");
+
+        assertEquals(LoanStatus.RETURNED, result.getStatus());
+        // No se llama bookRepository.save porque copias >= totalStock
+        verify(bookRepository, never()).save(any(Book.class));
+    }
+
+    // --- deleteLoan ---
+
+    @Test
+    @DisplayName("Eliminar préstamo devuelto exitosamente")
+    void deleteLoan_success() {
+        testLoan.setStatus(LoanStatus.RETURNED);
+        when(loanRepository.findById("loan-001")).thenReturn(Optional.of(testLoan));
+
+        assertDoesNotThrow(() -> loanService.deleteLoan("loan-001"));
+        verify(loanRepository).deleteById("loan-001");
+    }
+
+    @Test
+    @DisplayName("Eliminar préstamo activo lanza excepción")
+    void deleteLoan_active_throwsException() {
+        when(loanRepository.findById("loan-001")).thenReturn(Optional.of(testLoan));
+
+        assertThrows(IllegalStateException.class, () -> loanService.deleteLoan("loan-001"));
+    }
+
+    @Test
+    @DisplayName("Eliminar préstamo inexistente lanza excepción")
+    void deleteLoan_notFound_throwsException() {
+        when(loanRepository.findById("loan-999")).thenReturn(Optional.empty());
+
+        assertThrows(RuntimeException.class, () -> loanService.deleteLoan("loan-999"));
+    }
+
+    // --- validateLoanOwnership ---
+
+    @Test
+    @DisplayName("Validar ownership como bibliotecario pasa siempre")
+    void validateOwnership_librarian_passes() {
+        assertDoesNotThrow(() -> loanService.validateLoanOwnership("loan-001", "any-user", true));
+    }
+
+    @Test
+    @DisplayName("Validar ownership como dueño del préstamo pasa")
+    void validateOwnership_owner_passes() {
+        when(loanRepository.findById("loan-001")).thenReturn(Optional.of(testLoan));
+
+        assertDoesNotThrow(() -> loanService.validateLoanOwnership("loan-001", "user-001", false));
+    }
+
+    @Test
+    @DisplayName("Validar ownership como otro usuario lanza excepción")
+    void validateOwnership_notOwner_throwsException() {
+        when(loanRepository.findById("loan-001")).thenReturn(Optional.of(testLoan));
+
+        assertThrows(AccessDeniedException.class,
+                () -> loanService.validateLoanOwnership("loan-001", "user-other", false));
+    }
+
+    @Test
+    @DisplayName("Validar ownership con préstamo inexistente lanza excepción")
+    void validateOwnership_notFound_throwsException() {
+        when(loanRepository.findById("loan-999")).thenReturn(Optional.empty());
+
+        assertThrows(RuntimeException.class,
+                () -> loanService.validateLoanOwnership("loan-999", "user-001", false));
+    }
+
+    // --- getAllLoans ---
+
+    @Test
+    @DisplayName("Obtener todos los préstamos")
+    void getAllLoans_returnsList() {
+        when(loanRepository.findAll()).thenReturn(List.of(testLoan));
+
+        List<Loan> result = loanService.getAllLoans();
+
+        assertEquals(1, result.size());
+        assertEquals("loan-001", result.get(0).getId());
+    }
+
+    @Test
+    @DisplayName("Obtener todos los préstamos vacío")
+    void getAllLoans_returnsEmptyList() {
+        when(loanRepository.findAll()).thenReturn(Collections.emptyList());
+
+        List<Loan> result = loanService.getAllLoans();
+
+        assertTrue(result.isEmpty());
+    }
+
+    // --- getLoansByUserId ---
+
+    @Test
+    @DisplayName("Obtener préstamos por usuario retorna lista")
+    void getLoansByUserId_returnsList() {
+        when(loanRepository.findByUserId("user-001")).thenReturn(List.of(testLoan));
+
+        List<Loan> result = loanService.getLoansByUserId("user-001");
+
+        assertEquals(1, result.size());
+    }
+
+    @Test
+    @DisplayName("Obtener préstamos por usuario sin resultados")
+    void getLoansByUserId_returnsEmpty() {
+        when(loanRepository.findByUserId("user-999")).thenReturn(Collections.emptyList());
+
+        List<Loan> result = loanService.getLoansByUserId("user-999");
+
+        assertTrue(result.isEmpty());
+    }
+
+    // --- Tests del reto 6 (mantener originales) ---
+
+    @Test
+    @DisplayName("Dado 1 reserva registrada, consulta exitosa validando id")
     void givenOneLoan_whenFindAll_thenReturnsLoanWithCorrectId() {
         when(loanRepository.findAll()).thenReturn(List.of(testLoan));
 
         List<Loan> loans = loanService.getAllLoans();
 
         assertFalse(loans.isEmpty());
-        assertEquals(1, loans.size());
         assertEquals("loan-001", loans.get(0).getId());
     }
 
     @Test
-    @DisplayName("Dado que no hay ninguna reserva registrada, cuando la consulto a nivel de servicio, entonces la consulta no retorna ningún resultado")
+    @DisplayName("Sin reservas, consulta no retorna resultados")
     void givenNoLoans_whenFindAll_thenReturnsEmptyList() {
         when(loanRepository.findAll()).thenReturn(Collections.emptyList());
 
         List<Loan> loans = loanService.getAllLoans();
 
         assertTrue(loans.isEmpty());
-        assertEquals(0, loans.size());
     }
 
     @Test
-    @DisplayName("Dado que no hay ninguna reserva registrada, cuando la creo a nivel de servicio, entonces la creación será exitosa")
+    @DisplayName("Sin reservas, creación exitosa")
     void givenNoLoans_whenCreateLoan_thenCreationIsSuccessful() {
         when(userRepository.findById("user-001")).thenReturn(Optional.of(testUser));
         when(bookRepository.findById("book-001")).thenReturn(Optional.of(testBook));
         when(bookRepository.save(any(Book.class))).thenReturn(testBook);
-        when(loanRepository.save(any(Loan.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        when(loanRepository.save(any(Loan.class))).thenAnswer(inv -> inv.getArgument(0));
 
-        Loan createdLoan = loanService.createLoan("book-001", "user-001");
+        Loan created = loanService.createLoan("book-001", "user-001");
 
-        assertNotNull(createdLoan);
-        assertNotNull(createdLoan.getId());
-        assertEquals(LoanStatus.ACTIVE, createdLoan.getStatus());
-        assertEquals(LocalDate.now(), createdLoan.getLoanDate());
-        verify(loanRepository, times(1)).save(any(Loan.class));
+        assertNotNull(created);
+        assertNotNull(created.getId());
+        assertEquals(LoanStatus.ACTIVE, created.getStatus());
     }
 
     @Test
-    @DisplayName("Dado que tengo 1 reserva registrada, cuando la elimino a nivel de servicio, entonces la eliminación será exitosa")
+    @DisplayName("Con 1 reserva, eliminación exitosa")
     void givenOneLoan_whenDelete_thenDeletionIsSuccessful() {
         testLoan.setStatus(LoanStatus.RETURNED);
-        testLoan.setReturnDate(LocalDate.now());
-
         when(loanRepository.findById("loan-001")).thenReturn(Optional.of(testLoan));
-        doNothing().when(loanRepository).deleteById("loan-001");
 
         assertDoesNotThrow(() -> loanService.deleteLoan("loan-001"));
-        verify(loanRepository, times(1)).deleteById("loan-001");
+        verify(loanRepository).deleteById("loan-001");
     }
 
     @Test
-    @DisplayName("Dado que tengo 1 reserva registrada, cuando la elimino y consulto a nivel de servicio, entonces el resultado de la consulta no retorna ningún resultado")
+    @DisplayName("Con 1 reserva, eliminar y consultar retorna vacío")
     void givenOneLoan_whenDeleteAndFindAll_thenReturnsEmpty() {
         testLoan.setStatus(LoanStatus.RETURNED);
-        testLoan.setReturnDate(LocalDate.now());
-
         when(loanRepository.findById("loan-001")).thenReturn(Optional.of(testLoan));
-        doNothing().when(loanRepository).deleteById("loan-001");
 
         loanService.deleteLoan("loan-001");
 
@@ -137,6 +331,5 @@ class LoanServiceTest {
 
         List<Loan> loans = loanService.getAllLoans();
         assertTrue(loans.isEmpty());
-        assertEquals(0, loans.size());
     }
 }
