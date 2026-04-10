@@ -36,6 +36,10 @@ Token: squ_3407a73fede833189fa6d02403f807c40d3804a0
 La Base de datos actúa como componente de almacenamiento de la información del sistema, el Library Core contiene la lógica principal del dominio y las reglas de negocio relacionadas con la gestión de libros, usuarios y préstamos, y el Library Platform funciona como la capa de exposición e interacción con el usuario, permitiendo el acceso a las funcionalidades del sistema.
 
 
+## Videos de las pruebas funcionales:
+
+https://youtu.be/gLMnXquBiFs
+
 
 ## Bitácora
 Para la bitácora de esta semana, la evidencia corresponde al enlace de este repositorio: 
